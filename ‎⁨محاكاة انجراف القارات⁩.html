@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>محاكاة انجراف القارات</title>
+<style>
+:root{--bg:#f4f1ea;--fg:#1d2a33;--card:#fff;--sea:#bfe0f2;--mut:#5b6b75;--acc:#1f7a5a;--line:#c9d6de;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10181e;--fg:#e8eef2;--card:#18232b;--sea:#0f3550;--mut:#9ab0bd;--acc:#4cc596;--line:#2b3d49}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif}
+.w{max-width:760px;margin:0 auto;padding:14px}
+h1{font-size:20px;margin:4px 0 10px}
+.stage{position:relative;border-radius:14px;overflow:hidden;background:var(--sea);border:1px solid var(--line)}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+canvas{position:relative;display:block;width:100%}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:10px}
+.big{font-size:26px;font-weight:700;color:var(--acc)}
+input[type=range]{width:100%;direction:ltr;accent-color:var(--acc)}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:10px;padding:8px 12px}
+button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+p{margin:6px 0 0;line-height:1.7;font-size:15px}
+.n{color:var(--mut);font-size:12px}
+</style>
+</head>
+<body>
+<div class="w">
+<h1>محاكاة انجراف القارات 🌍</h1>
+<div class="stage"><video id="v" playsinline muted></video><canvas id="c"></canvas></div>
+<div class="card">
+<div class="big" id="yr"></div>
+<input type="range" id="s" min="0" max="200" value="200" step="1" aria-label="الزمن">
+<div class="row" id="chips"></div>
+<div class="row"><button id="play">▶ تشغيل</button><button id="cam">📷 خلفية الكاميرا</button></div>
+<p id="cap"></p>
+<p class="n">رسم مبسّط للتوضيح، مبني على الشكل 2-5 في الكتاب. مواقع القارات وأشكالها تقريبية. للكاميرا: اسمح للمتصفح بالوصول إليها ووجّه الجوال نحو سطح مستوٍ.</p>
+</div>
+</div>
+<script>
+const P={
+NA:{n:"أمريكا الشمالية",c:"#4f9d5d",d:[45,-5],p:[[-168,66],[-140,70],[-95,72],[-80,73],[-62,60],[-55,50],[-67,45],[-76,35],[-81,25],[-97,26],[-105,20],[-95,16],[-85,10],[-90,15],[-110,24],[-118,33],[-124,42],[-125,50],[-140,60],[-165,60]]},
+GR:{n:"",c:"#7fb88a",d:[50,-12],p:[[-55,60],[-20,70],[-20,82],[-60,82],[-70,76]]},
+SA:{n:"أمريكا الجنوبية",c:"#c9a64b",d:[20,6],p:[[-78,8],[-60,10],[-50,0],[-35,-6],[-40,-22],[-58,-38],[-66,-55],[-74,-50],[-72,-30],[-80,-5]]},
+AF:{n:"أفريقيا",c:"#d98b4a",d:[0,3],p:[[-17,21],[-10,35],[10,37],[32,31],[43,12],[51,12],[40,-5],[40,-16],[33,-28],[20,-35],[12,-18],[9,0],[-8,5],[-17,14]]},
+EU:{n:"أوروبا",c:"#6c8fd1",d:[-10,-5],p:[[-10,36],[-9,43],[-2,48],[5,53],[10,58],[20,70],[30,70],[40,65],[40,45],[28,41],[20,38],[12,38],[0,38]]},
+AS:{n:"آسيا",c:"#b567a8",d:[-10,-5],p:[[28,41],[40,45],[40,65],[60,73],[110,77],[160,70],[180,66],[140,50],[130,35],[122,30],[108,20],[103,2],[98,16],[90,22],[72,22],[60,25],[50,30],[44,12],[35,30]]},
+IN:{n:"الهند",c:"#e0605a",d:[-26,-40],p:[[68,24],[72,22],[80,15],[78,8],[88,22],[90,27],[75,34]]},
+AU:{n:"أستراليا",c:"#d6b13f",d:[-48,-15],p:[[114,-22],[130,-12],[142,-11],[153,-26],[147,-38],[135,-34],[115,-34]]},
+AN:{n:"القارة القطبية الجنوبية",c:"#dfe8ee",d:[-5,18],p:[[-60,-65],[-20,-72],[60,-68],[150,-68],[160,-78],[0,-82],[-70,-78]]}
+};
+const K=[[200,0],[180,.12],[135,.38],[65,.78],[0,1]];
+const ST=[
+[200,"قبل 200 مليون سنة","كانت القارات مجتمعة معًا في قارة واحدة تُسمّى بانجيا."],
+[180,"قبل 180 مليون سنة","تشققت بانجيا إلى كتل أصغر، ثم انجرفت وبدأ المحيط الأطلسي بالتشكّل."],
+[135,"قبل 135 مليون سنة","بدأت قارتا أفريقيا وأمريكا الجنوبية بالانفصال إحداهما عن الأخرى."],
+[65,"قبل 65 مليون سنة","تحرّكت الهند شمالًا نحو قارة آسيا."],
+[0,"حاليًا","اصطدمت الهند بآسيا وتكوّنت جبال الهملايا، وانفصلت أستراليا عن القارة القطبية الجنوبية، وما زالت القارات تواصل حركتها."]];
+const prog=m=>{for(let i=0;i<K.length-1;i++){const[a,pa]=K[i],[b,pb]=K[i+1];if(m<=a&&m>=b)return pa+(pb-pa)*(a-m)/(a-b)}return 1};
+const cv=document.getElementById('c'),cx=cv.getContext('2d'),sl=document.getElementById('s');
+let W,H,mya=200,cam=false,timer=null;
+function size(){const r=devicePixelRatio||1;W=cv.clientWidth||340;H=W*.5;cv.width=W*r;cv.height=H*r;cx.setTransform(r,0,0,r,0,0);draw()}
+const X=l=>(l+180)/360*W,Y=a=>(90-a)/180*H;
+function draw(){
+ cx.clearRect(0,0,W,H);
+ if(!cam){cx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--sea');cx.fillRect(0,0,W,H)}
+ cx.strokeStyle="rgba(255,255,255,.25)";cx.lineWidth=1;
+ for(let l=-180;l<=180;l+=30){cx.beginPath();cx.moveTo(X(l),0);cx.lineTo(X(l),H);cx.stroke()}
+ for(let a=-60;a<=60;a+=30){cx.beginPath();cx.moveTo(0,Y(a));cx.lineTo(W,Y(a));cx.stroke()}
+ const t=prog(mya);
+ for(const k in P){
+  const o=P[k];let q=t;if(k==="IN")q=Math.pow(t,1.8);
+  const ox=o.d[0]*(1-q),oy=o.d[1]*(1-q);
+  cx.beginPath();
+  o.p.forEach(([lo,la],i)=>{const x=X(lo+ox),y=Y(la+oy);i?cx.lineTo(x,y):cx.moveTo(x,y)});
+  cx.closePath();cx.fillStyle=o.c;cx.globalAlpha=.92;cx.fill();cx.globalAlpha=1;
+  cx.strokeStyle="rgba(0,0,0,.45)";cx.stroke();
+  if(o.n){const m=o.p.reduce((s,[a,b])=>[s[0]+a/o.p.length,s[1]+b/o.p.length],[0,0]);
+   cx.fillStyle="#111";cx.font=`600 ${Math.max(9,W/55)}px system-ui`;cx.textAlign="center";
+   cx.fillText(o.n,X(m[0]+ox),Y(m[1]+oy))}
+ }
+ let s=ST[0];for(const x of ST)if(mya<=x[0]+8)s=x;
+ document.getElementById('yr').textContent=mya===0?"حاليًا":"قبل "+Math.round(mya)+" مليون سنة";
+ document.getElementById('cap').textContent=s[2];
+ document.querySelectorAll('#chips button').forEach((b,i)=>b.classList.toggle('on',ST[i]===s));
+}
+sl.oninput=()=>{mya=200-sl.value;draw()};
+const ch=document.getElementById('chips');
+ST.forEach(s=>{const b=document.createElement('button');b.textContent=s[0]?s[0]+" م.س":"الآن";b.onclick=()=>{stop();mya=s[0];sl.value=200-mya;draw()};ch.appendChild(b)});
+function stop(){clearInterval(timer);timer=null;document.getElementById('play').textContent="▶ تشغيل"}
+document.getElementById('play').onclick=()=>{
+ if(timer)return stop();
+ if(mya<=0){mya=200}
+ document.getElementById('play').textContent="⏸ إيقاف";
+ timer=setInterval(()=>{mya-=.6;if(mya<=0){mya=0;stop()}sl.value=200-mya;draw()},30)};
+document.getElementById('cam').onclick=async function(){
+ const v=document.getElementById('v');
+ if(cam){cam=false;v.style.display="none";v.srcObject&&v.srcObject.getTracks().forEach(t=>t.stop());this.classList.remove('on');draw();return}
+ try{
+  const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+  v.srcObject=st;await v.play();v.style.display="block";cam=true;this.classList.add('on');draw();
+ }catch(e){alert("تعذّر تشغيل الكاميرا هنا. جرّب فتح الصفحة في المتصفح مباشرة وإعطاء إذن الكاميرا.")}};
+addEventListener('resize',size);size();
+</script>
+</body>
+</html>
